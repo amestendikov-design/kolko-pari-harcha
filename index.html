@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Колко Пари Харча</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Пари Харча" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue: #2563eb;
+      --blue-light: #eff6ff;
+      --green: #16a34a;
+      --red: #dc2626;
+      --gray: #6b7280;
+      --bg: #f9fafb;
+      --card: #ffffff;
+      --border: #e5e7eb;
+      --text: #111827;
+      --subtext: #6b7280;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* NAV */
+    .nav { background: var(--blue); color: white; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    .nav h1 { font-size: 1.1rem; font-weight: 700; }
+    .nav-tabs { display: flex; gap: 4px; }
+    .nav-tab { background: rgba(255,255,255,0.15); border: none; color: white; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 0.8rem; font-weight: 500; transition: background 0.2s; }
+    .nav-tab.active { background: white; color: var(--blue); }
+
+    /* PAGES */
+    .page { display: none; padding: 16px; max-width: 600px; margin: 0 auto; }
+    .page.active { display: block; }
+
+    /* CARDS */
+    .card { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); border: 1px solid var(--border); }
+    .card-title { font-size: 0.75rem; font-weight: 600; color: var(--subtext); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+
+    /* SUMMARY TILES */
+    .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .tile { background: var(--card); border-radius: 12px; padding: 14px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.08); border: 1px solid var(--border); }
+    .tile-value { font-size: 1.5rem; font-weight: 700; color: var(--blue); }
+    .tile-label { font-size: 0.72rem; color: var(--subtext); margin-top: 2px; }
+
+    /* SCAN BUTTON */
+    .scan-area { text-align: center; padding: 20px 0; }
+    .btn-scan { background: var(--blue); color: white; border: none; border-radius: 50px; padding: 14px 32px; font-size: 1rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(37,99,235,0.4); transition: transform 0.1s; }
+    .btn-scan:active { transform: scale(0.97); }
+    .btn-scan svg { width: 20px; height: 20px; }
+
+    /* FORM */
+    .form-row { margin-bottom: 12px; }
+    .form-row label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--gray); margin-bottom: 4px; }
+    .form-row input, .form-row select { width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 0.95rem; color: var(--text); background: white; transition: border-color 0.2s; }
+    .form-row input:focus, .form-row select:focus { outline: none; border-color: var(--blue); }
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .btn-save { width: 100%; background: var(--green); color: white; border: none; border-radius: 8px; padding: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 4px; }
+    .btn-cancel { width: 100%; background: var(--bg); color: var(--gray); border: 1.5px solid var(--border); border-radius: 8px; padding: 11px; font-size: 0.95rem; font-weight: 500; cursor: pointer; margin-top: 8px; }
+
+    /* RECEIPT LIST */
+    .receipt-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .receipt-item:last-child { border-bottom: none; }
+    .receipt-icon { width: 40px; height: 40px; border-radius: 10px; background: var(--blue-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1.2rem; }
+    .receipt-info { flex: 1; min-width: 0; }
+    .receipt-store { font-weight: 600; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .receipt-meta { font-size: 0.78rem; color: var(--subtext); margin-top: 2px; }
+    .receipt-amount { font-weight: 700; font-size: 1rem; color: var(--blue); white-space: nowrap; }
+    .receipt-del { background: none; border: none; color: #ccc; cursor: pointer; padding: 4px; font-size: 1.1rem; flex-shrink: 0; }
+    .receipt-del:hover { color: var(--red); }
+
+    /* CATEGORY BADGE */
+    .cat-badge { display: inline-block; font-size: 0.7rem; padding: 2px 7px; border-radius: 10px; font-weight: 500; margin-top: 3px; }
+    .cat-хранителни { background: #d1fae5; color: #065f46; }
+    .cat-дрехи { background: #fef3c7; color: #92400e; }
+    .cat-домакинство { background: #ede9fe; color: #5b21b6; }
+    .cat-аптека { background: #fee2e2; color: #991b1b; }
+    .cat-ресторант { background: #ffedd5; color: #9a3412; }
+    .cat-друго { background: #f3f4f6; color: #374151; }
+
+    /* OCR OVERLAY */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+    .overlay.show { display: flex; }
+    .overlay-card { background: white; border-radius: 16px; padding: 20px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; }
+    .overlay-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 14px; }
+    .ocr-status { font-size: 0.85rem; color: var(--subtext); margin-bottom: 10px; min-height: 20px; }
+    .progress-bar { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 16px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--blue); width: 0%; transition: width 0.3s; border-radius: 2px; }
+    #preview-img { width: 100%; border-radius: 8px; margin-bottom: 12px; display: none; max-height: 300px; object-fit: contain; }
+
+    /* CHART */
+    .chart-wrap { position: relative; height: 220px; }
+    .month-select { width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 0.9rem; color: var(--text); margin-bottom: 12px; }
+
+    /* EMPTY */
+    .empty { text-align: center; padding: 40px 20px; color: var(--subtext); }
+    .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+    .empty p { font-size: 0.9rem; line-height: 1.5; }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1f2937; color: white; padding: 10px 20px; border-radius: 20px; font-size: 0.85rem; z-index: 300; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+
+    /* FILE input hidden */
+    #file-input { display: none; }
+
+    /* CAT BREAKDOWN */
+    .cat-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+    .cat-row:last-child { border-bottom: none; }
+    .cat-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; margin: 0 10px; }
+    .cat-bar { height: 100%; border-radius: 3px; background: var(--blue); }
+
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #111827; --card: #1f2937; --border: #374151; --text: #f9fafb; --subtext: #9ca3af; --blue-light: #1e3a8a; }
+      .form-row input, .form-row select, .month-select { background: #374151; color: #f9fafb; border-color: #4b5563; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <h1>💸 Колко Пари Харча</h1>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('scan')">Сканирай</button>
+    <button class="nav-tab" onclick="showPage('list')">История</button>
+    <button class="nav-tab" onclick="showPage('stats')">Отчети</button>
+  </div>
+</nav>
+
+<!-- SCAN PAGE -->
+<div class="page active" id="page-scan">
+  <div class="tiles">
+    <div class="tile">
+      <div class="tile-value" id="tile-month-total">0.00 лв</div>
+      <div class="tile-label">Този месец</div>
+    </div>
+    <div class="tile">
+      <div class="tile-value" id="tile-count">0</div>
+      <div class="tile-label">Бележки общо</div>
+    </div>
+  </div>
+
+  <div class="card scan-area">
+    <div class="card-title">Добави нова бележка</div>
+    <p style="font-size:0.85rem;color:var(--subtext);margin-bottom:16px;">Снимай касова бележка и OCR автоматично ще разпознае сумата</p>
+    <button class="btn-scan" onclick="document.getElementById('file-input').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      Снимай / Избери снимка
+    </button>
+    <input type="file" id="file-input" accept="image/*" capture="environment" onchange="handleImage(event)" />
+    <div style="margin-top:12px;">
+      <button class="btn-cancel" onclick="openManualForm()">✏️ Въведи ръчно</button>
+    </div>
+  </div>
+
+  <div class="card" id="recent-card">
+    <div class="card-title">Последни бележки</div>
+    <div id="recent-list"></div>
+  </div>
+</div>
+
+<!-- LIST PAGE -->
+<div class="page" id="page-list">
+  <div class="card">
+    <div class="card-title">Всички бележки</div>
+    <select class="month-select" id="list-month-filter" onchange="renderList()">
+      <option value="">Всички месеци</option>
+    </select>
+    <div id="full-list"></div>
+  </div>
+</div>
+
+<!-- STATS PAGE -->
+<div class="page" id="page-stats">
+  <div class="tiles">
+    <div class="tile">
+      <div class="tile-value" id="stat-avg">0.00 лв</div>
+      <div class="tile-label">Средно / месец</div>
+    </div>
+    <div class="tile">
+      <div class="tile-value" id="stat-max-month">—</div>
+      <div class="tile-label">Най-скъп месец</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Разходи по месеци (лв)</div>
+    <div class="chart-wrap">
+      <canvas id="monthly-chart"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">По категории – този месец</div>
+    <div id="cat-breakdown"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Категории (диаграма)</div>
+    <div class="chart-wrap">
+      <canvas id="cat-chart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- OCR OVERLAY -->
+<div class="overlay" id="ocr-overlay">
+  <div class="overlay-card">
+    <div class="overlay-title">📷 Добавяне на бележка</div>
+    <img id="preview-img" alt="preview" />
+    <div class="ocr-status" id="ocr-status">Зареждане на OCR...</div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+
+    <div class="form-row">
+      <label>Магазин</label>
+      <input type="text" id="f-store" placeholder="напр. Lidl, Kaufland..." />
+    </div>
+    <div class="form-row-2">
+      <div class="form-row">
+        <label>Сума (лв)</label>
+        <input type="number" id="f-amount" step="0.01" min="0" placeholder="0.00" />
+      </div>
+      <div class="form-row">
+        <label>Дата</label>
+        <input type="date" id="f-date" />
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Категория</label>
+      <select id="f-cat">
+        <option value="хранителни">🛒 Хранителни</option>
+        <option value="домакинство">🏠 Домакинство</option>
+        <option value="дрехи">👕 Дрехи</option>
+        <option value="аптека">💊 Аптека</option>
+        <option value="ресторант">🍽️ Ресторант/Кафе</option>
+        <option value="друго">📦 Друго</option>
+      </select>
+    </div>
+    <button class="btn-save" onclick="saveReceipt()">💾 Запази</button>
+    <button class="btn-cancel" onclick="closeOverlay()">Отказ</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let Tesseract = null;
+async function loadTesseract() {
+  if (Tesseract) return;
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js';
+    s.onload = () => { Tesseract = window.Tesseract; resolve(); };
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+const STORE_KEY = 'receipts_v1';
+function getReceipts() { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch { return []; } }
+function saveReceipts(arr) { localStorage.setItem(STORE_KEY, JSON.stringify(arr)); }
+function addReceipt(r) { const a = getReceipts(); a.unshift(r); saveReceipts(a); }
+function deleteReceipt(id) { saveReceipts(getReceipts().filter(r => r.id !== id)); }
+const MONTHS_BG = ['Яну','Фев','Мар','Апр','Май'
+'Юни'
+'Юли'
+'Авг','Сеп'
+'Окт','Ное'
+'Дек'];
+function fmtDate(d) { const dt = new Date(d); return `${dt.getDate()} ${MONTHS_BG[dt.getMonth()]} ${dt.getFullYear()}`; }
+function monthKey(d) { const dt = new Date(d); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`; }
+function monthLabel(k) { const [y,m] = k.split('-'); return `${MONTHS_BG[+m-1]} ${y}`; }
+function today() { return new Date().toISOString().slice(0,10); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+const catEmoji = { хranitelni:'🛒', domakinstvo:'🏠', drehi:'👕', apteka:'💊', restorant:'🍽️', drugo:'📦' };
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  const tabs = ['scan','list','stats'];
+  document.querySelectorAll('.nav-tab')[tabs.indexOf(name)].classList.add('active');
+  if (name === 'scan') renderScan();
+  if (name === 'list') renderList();
+  if (name === 'stats') renderStats();
+}
+
+function renderScan() {
+  const receipts = getReceipts();
+  const now = monthKey(today());
+  const monthTotal = receipts.filter(r => monthKey(r.date) === now).reduce((s,r) => s + r.amount, 0);
+  document.getElementById('tile-month-total').textContent = monthTotal.toFixed(2) + ' лв';
+  document.getElementById('tile-count').textContent = receipts.length;
+  const list = receipts.slice(0, 5);
+  const el = document.getElementById('recent-list');
+  if (!list.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">🧾</div><p>Все още няма бележки.<br>Сканирай първата!</p></div>'; return; }
+  el.innerHTML = list.map(r => receiptItemHTML(r)).join('');
+}
+
+function receiptItemHTML(r) {
+  return `<div class="receipt-item">
+    <div class="receipt-icon">${catEmoji[r.cat]||''}${r.cat}</div>
+    <div class="receipt-info">
+      <div class="receipt-store">${r.store||'Magazin'}</div>
+      <div class="receipt-meta">${fmtDate(r.date)}</div>
+      <span class="cat-badge cat-${r.cat}">${r.cat}</span>
+    </div>
+    <div class="receipt-amount">${r.amount.toFixed(2)} лв</div>
+    <button class="receipt-del" onclick="delReceipt('${r.id}')">✕</button>
+  </div>`;
+}
+
+function delReceipt(id) {
+  if (!confirm('Iztrivane na belezhka?')) return;
+  deleteReceipt(id);
+  renderScan(); renderList(); renderStats();
+  toast('Belezhkata e izbrisana');
+}
+
+function renderList() {
+  const receipts = getReceipts();
+  const filter = document.getElementById('list-month-filter');
+  const months = [...new Set(receipts.map(r => monthKey(r.date)))].sort().reverse();
+  const curVal = filter.value;
+  filter.innerHTML = '<option value="">Vsichki meseci</option>' +
+    months.map(m => `<option value="${m}" ${m === curVal ? 'selected' : ''}>${monthLabel(m)}</option>`).join('');
+  const shown = filter.value ? receipts.filter(r => monthKey(r.date) === filter.value) : receipts;
+  const el = document.getElementById('full-list');
+  if (!shown.length) { el.innerHTML = '<div class="empty"><p>Nyama belezhki</p></div>'; return; }
+  const total = shown.reduce((s,r) => s + r.amount, 0);
+  el.innerHTML = `<div style="text-align:right;margin-bottom:8px;">Obshcho: ${total.toFixed(2)} лв (${shown.length} бр.)</div>` +
+    shown.map(r => receiptItemHTML(r)).join('');
+}
+
+let chartM = null, chartC = null;
+
+function renderStats() {
+  const receipts = getReceipts();
+  if (!receipts.length) {
+    document.getElementById('stat-avg').textContent = '0.00 лв';
+    document.getElementById('stat-max-month').textContent = '—';
+    document.getElementById('cat-breakdown').innerHTML = '<div class="empty"><p>Nyama danni</p></div>';
+    return;
+  }
+  const byMonth = {};
+  receipts.forEach(r => { const k = monthKey(r.date); byMonth[k] = (byMonth[k]||0) + r.amount; });
+  const monthKeys = Object.keys(byMonth).sort();
+  const monthVals = monthKeys.map(k => +byMonth[k].toFixed(2));
+  const avg = monthVals.reduce((a,b) => a+b, 0) / monthVals.length;
+  document.getElementById('stat-avg').textContent = avg.toFixed(2) + ' лв';
+  const maxM = monthKeys[monthVals.indexOf(Math.max(...monthVals))];
+  document.getElementById('stat-max-month').textContent = monthLabel(maxM);
+  if (chartM) chartM.destroy();
+  const ctx1 = document.getElementById('monthly-chart').getContext('2d');
+  chartM = new Chart(ctx1, { type: 'bar', data: { labels: monthKeys.map(monthLabel), datasets: [{ data: monthVals, backgroundColor: '#2563eb', borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+  const byCat = {};
+  receipts.forEach(r => { byCat[r.cat] = (byCat[r.cat]||0) + r.amount; });
+  const catLabels = Object.keys(byCat);
+  const catVals = catLabels.map(k => +byCat[k].toFixed(2));
+  const colors = ['#2563eb','#16a34a','#d97706','#dc2626','#7c3aed','#0891b2'];
+  document.getElementById('cat-breakdown').innerHTML = catLabels.map((k,i) => {
+    const tot = catVals.reduce((a,b)=>a+b,0);
+    const pct = tot ? (catVals[i]/tot*100) : 0;
+    return `<div class="cat-row"><span>${catEmoji[k]||''} ${k}</span><div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%"></div></div><span>${catVals[i].toFixed(2)} </span></div>`;
+  }).join('');
+  if (chartC) chartC.destroy();
+  const ctx2 = document.getElementById('cat-chart').getContext('2d');
+  chartC = new Chart(ctx2, { type: 'doughnut', data: { labels: catLabels, datasets: [{ data: catVals, backgroundColor: colors }] }, options: { responsive: true, maintainAspectRatio: false } });
+}
+
+async function handleImage(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = '';
+  openOverlay();
+  const url = URL.createObjectURL(file);
+  const img = document.getElementById('preview-img');
+  img.src = url; img.style.display = 'block';
+  document.getElementById('f-date').value = today();
+  setProgress(5, 'Loading OCR...');
+  try {
+    await loadTesseract();
+    setProgress(20, 'Recognizing...');
+    const result = await Tesseract.recognize(file, 'bul+eng', { logger: m => { if (m.status === 'recognizing text') setProgress(20 + m.progress * 70, 'Recognizing...'); } });
+    setProgress(95, 'Parsing...');
+    const { amount, store } = parseReceipt(result.data.text);
+    if (amount) { document.getElementById('f-amount').value = amount.toFixed(2); setProgress(100, 'OK ' + amount.toFixed(2) + ' лв'); }
+    else { setProgress(100, 'No sum found'); }
+    if (store) document.getElementById('f-store').value = store;
+  } catch (err) {
+    setProgress(0, 'OCR error');
+  }
+}
+
+function parseReceipt(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const totalKw = /OBSHCHG�|SUMA|TOTAL|DA PLATI|KASA|AMOUNT|GRAND/i;
+  let amount = null;
+  for (const line of lines) {
+    if (totalKw.test(line)) {
+      const match = line.match(/(\d[\d\s]*[.,]\d{2})/);
+      if (match) { amount = parseFloat(match[1].replace(/\s/g,'').replace(',','.')); break; }
+    }
+  }
+  if (!amount) {
+    const allMoney = [...text.matchAll(/(\d{1,5}[.,]\d{2})/g)].map(m => parseFloat(m[1].replace(',','.')));
+    if (allMoney.length) amount = Math.max(...allMoney);
+  }
+  const store = lines.find(l => l.length > 2 && l.length < 40 && /[a-zA-ZА-яА-ya-yА-љ]/.test(l) && !/\d{2}[.:]\d{2}/.test(l)) || '';
+  return { amount, store };
+}
+
+function setProgress(pct, msg) {
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('ocr-status').textContent = msg;
+}
+
+function openOverlay() {
+  document.getElementById('ocr-overlay').classList.add('show');
+  document.getElementById('f-amount').value = '';
+  document.getElementById('f-store').value = '';
+  document.getElementById('f-date').value = today();
+  document.getElementById('f-cat').value = 'хранителни';
+  document.getElementById('preview-img').style.display = 'none';
+  setProgress(0, '');
+}
+function openManualForm() { openOverlay(); setProgress(100, 'Vvedi ruchno'); }
+function closeOverlay() { document.getElementById('ocr-overlay').classList.remove('show'); }
+
+function saveReceipt() {
+  const amount = parseFloat(document.getElementById('f-amount').value);
+  const store = document.getElementById('f-store').value.trim() || 'Magazin';
+  const date = document.getElementById('f-date').value || today();
+  const cat = document.getElementById('f-cat').value;
+  if (!amount || amount <= 0) { alert('Vvedi suma!'); return; }
+  addReceipt({ id: uid(), amount, store, date, cat });
+  closeOverlay();
+  toast('✅ Запазено!');
+  renderScan();
+}
+
+renderScan();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
